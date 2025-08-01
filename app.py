@@ -1,3 +1,5 @@
+!pip install torch transformers gradio plotly
+
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -229,3 +231,4 @@ with gr.Blocks(css=CUSTOM_CSS, title="Fake News Generator & Detector") as demo:
     )
 
 demo.launch()
+
