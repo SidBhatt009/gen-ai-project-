@@ -1,10 +1,12 @@
 !pip install torch transformers gradio plotly
+!pip install --upgrade transformers
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
 
-import os
+ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 import torch
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import gradio as gr
 import plotly.graph_objs as go
@@ -64,13 +66,12 @@ def generate_fake_news(prompt, max_length, temperature, style, language):
     )
     generated_text = gpt2_tokenizer.decode(outputs[0], skip_special_tokens=True)
     return generated_text
-
-def detect_news(text, language):
+def detect_news(text, language, threshold=0.7):
     if not text or len(text.strip()) < 20:
         return "⚠️ Please paste a full news article or paragraph for best results.", None
     lang_code = LANGUAGES.get(language, "en")
     prompt_prefix = LANG_DETECT_PROMPTS.get(lang_code, LANG_DETECT_PROMPTS["en"])
-    input_text = prompt_prefix + "\n" + text.strip()
+    input_text = f"{prompt_prefix}\n{text.strip()}"
     inputs = bert_tokenizer(input_text, return_tensors="pt", truncation=True, padding=True).to(device)
     with torch.no_grad():
         outputs = bert_model(**inputs)
@@ -78,13 +79,20 @@ def detect_news(text, language):
     probabilities = torch.softmax(logits, dim=1)[0]
     fake_confidence = probabilities[0].item()
     real_confidence = probabilities[1].item()
-    label = "🛑 Likely Fake" if fake_confidence > real_confidence else "✅ Likely Real"
+    # Stricter, more reliable output
+    if fake_confidence >= threshold:
+        label = "🛑 Very Likely Fake"
+    elif real_confidence >= threshold:
+        label = "✅ Very Likely Real"
+    else:
+        label = "🤔 Uncertain (Neither class sufficiently likely)"
     result_text = (
         f"### {label}\n"
         f"**Confidence (Fake):** {fake_confidence:.2f} &nbsp;|&nbsp; **Confidence (Real):** {real_confidence:.2f}"
     )
     confidence_data = {"Fake": fake_confidence, "Real": real_confidence}
     return result_text, confidence_data
+# --------------------------------------------
 
 def make_confidence_bar_chart(confidence_data):
     if confidence_data is None:
@@ -232,3 +240,8 @@ with gr.Blocks(css=CUSTOM_CSS, title="Fake News Generator & Detector") as demo:
 
 demo.launch()
 
+
+ 
+       
+     
+       
